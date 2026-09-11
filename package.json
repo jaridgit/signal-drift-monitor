@@ -1,0 +1,16 @@
+{
+  "name": "signal-drift-monitor",
+  "private": true,
+  "packageManager": "npm@11.19.0",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test"
+  },
+  "devDependencies": {
+    "turbo": "^2.1.0",
+    "typescript": "^5.5.0"
+  }
+}

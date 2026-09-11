@@ -1,0 +1,14 @@
+# Optional: fully local DynamoDB + Redis, if you'd rather not sign up for
+# Upstash (Redis) or use a real AWS account (DynamoDB) yet.
+# Run `docker compose up -d` from this folder.
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
+    ports:
+      - "8002:8000"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"

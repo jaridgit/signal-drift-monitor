@@ -8,53 +8,99 @@
 import type { Driver, PlannedValue, ActualValue, DriftFlag } from "@signal-drift/types";
 
 /**
- * TODO: sum a period's actual driver values into a revenue figure.
- * Decide which drivers count as revenue-generating (e.g. new customers
- * * average deal size) vs. cost drivers (e.g. headcount, burn) — that
- * distinction is a design decision you should make deliberately, not
- * hardcode by accident.
+ * Sums a period's actual values across every driver tagged
+ * `kind: "revenue"`, ignoring cost drivers (e.g. headcount, burn).
  */
 export function calculateRevenue(
   drivers: Driver[],
   actuals: ActualValue[],
   period: string
 ): number {
-  throw new Error("calculateRevenue not implemented yet");
+  const revenueDriverIds = new Set(
+    drivers.filter((driver) => driver.kind === "revenue").map((driver) => driver.id)
+  );
+
+  return actuals
+    .filter((actual) => actual.period === period && revenueDriverIds.has(actual.driverId))
+    .reduce((total, actual) => total + actual.value, 0);
 }
 
 /**
- * TODO: revenue minus costs for a period. Net-negative means burning
- * cash; net-positive means profitable that period.
+ * Revenue minus costs for a period. Net-negative means burning cash;
+ * net-positive means profitable that period.
  */
 export function calculateNetBurn(
   drivers: Driver[],
   actuals: ActualValue[],
   period: string
 ): number {
-  throw new Error("calculateNetBurn not implemented yet");
+  const costDriverIds = new Set(
+    drivers.filter((driver) => driver.kind === "cost").map((driver) => driver.id)
+  );
+
+  const costs = actuals
+    .filter((actual) => actual.period === period && costDriverIds.has(actual.driverId))
+    .reduce((total, actual) => total + actual.value, 0);
+
+  return calculateRevenue(drivers, actuals, period) - costs;
 }
 
 /**
- * TODO: given current cash on hand and a net burn rate, how many months
- * until it runs out? Handle the edge case where net burn is zero or
- * positive (i.e. runway is effectively infinite) explicitly rather than
- * dividing by zero or returning something misleading.
+ * Months of cash left at the current burn rate. Zero or positive net
+ * burn means spending isn't exceeding income, so runway is treated as
+ * infinite rather than dividing by zero.
  */
 export function calculateRunwayMonths(cashOnHand: number, netBurn: number): number {
-  throw new Error("calculateRunwayMonths not implemented yet");
+  if (netBurn >= 0) {
+    return Infinity;
+  }
+
+  return cashOnHand / -netBurn;
 }
 
 /**
- * TODO: compare a planned value against a rolling window of actuals for
- * the same driver, and decide whether it counts as drift. A single
- * off-target period usually shouldn't trigger "critical" — think about
- * what a sensible rolling-window deviation threshold looks like, and
- * make severity ("none" | "warning" | "critical") a real judgment call,
- * not just two arbitrary cutoffs.
+ * Compares a planned value against the average of a rolling window of
+ * recent actuals (not just the latest one) so a single noisy period
+ * doesn't swing the severity. Deviation under 10% is ignored, 10-25% is
+ * a warning, anything higher is critical — a deliberate, if arbitrary,
+ * threshold choice.
  */
 export function detectDrift(
   planned: PlannedValue,
   recentActuals: ActualValue[]
 ): DriftFlag | null {
-  throw new Error("detectDrift not implemented yet");
+  const matchingActuals = recentActuals.filter((actual) => actual.driverId === planned.driverId);
+
+  if (matchingActuals.length === 0) {
+    return null;
+  }
+
+  const averageActual =
+    matchingActuals.reduce((total, actual) => total + actual.value, 0) / matchingActuals.length;
+
+  const deviationPct = ((averageActual - planned.value) / planned.value) * 100;
+  const absDeviationPct = Math.abs(deviationPct);
+
+  let severity: DriftFlag["severity"];
+  if (absDeviationPct < 10) {
+    severity = "none";
+  } else if (absDeviationPct < 25) {
+    severity = "warning";
+  } else {
+    severity = "critical";
+  }
+
+  if (severity === "none") {
+    return null;
+  }
+
+  return {
+    driverId: planned.driverId,
+    period: planned.period,
+    plannedValue: planned.value,
+    actualValue: averageActual,
+    deviationPct,
+    severity,
+    detectedAt: new Date().toISOString(),
+  };
 }

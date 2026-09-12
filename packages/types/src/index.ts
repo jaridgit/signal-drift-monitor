@@ -9,6 +9,7 @@ export interface Driver {
   id: string;
   name: string;
   unit: string; // e.g. "customers", "EUR", "headcount"
+  kind: "revenue" | "cost";
 }
 
 /** What was planned for a driver in a given period. */
